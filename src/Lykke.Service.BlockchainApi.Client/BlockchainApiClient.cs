@@ -334,24 +334,26 @@ namespace Lykke.Service.BlockchainApi.Client
         /// <inheritdoc />
         public async Task<BroadcastedTransaction> TryGetBroadcastedTransactionAsync(Guid operationId, BlockchainAsset asset)
         {
-            try
-            {
-                return await GetBroadcastedTransactionAsync(operationId, asset);
-            }
-            catch (ErrorResponseException ex) when(ex.StatusCode == HttpStatusCode.NoContent)
-            {
-                return null;
-            }
-        }
-
-        public async Task<BroadcastedTransaction> GetBroadcastedTransactionAsync(Guid operationId, BlockchainAsset asset)
-        {
             ValidateOperationIdIsNotEmpty(operationId);
             ValidateAssetIsNotNull(asset);
 
             var apiResponse = await _runner.RunWithRetriesAsync(() => _api.GetBroadcastedTransactionAsync(operationId));
 
-            return new BroadcastedTransaction(apiResponse, asset.Accuracy, operationId);
+            return apiResponse == null 
+                ? null 
+                : new BroadcastedTransaction(apiResponse, asset.Accuracy, operationId);
+        }
+
+        public async Task<BroadcastedTransaction> GetBroadcastedTransactionAsync(Guid operationId, BlockchainAsset asset)
+        {
+            var result = await TryGetBroadcastedTransactionAsync(operationId, asset);
+
+            if (result == null)
+            {
+                throw new ResultValidationException("Transaction is not found");
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
